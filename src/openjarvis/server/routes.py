@@ -82,7 +82,7 @@ def _ensure_identity_prompt(messages: list[Message], app_config) -> list[Message
     ``_build_managed_system_prompt`` in ``agent_manager_routes.py``. Config
     resolution is wrapped so a broken/missing config degrades to "no
     injection" rather than crashing the endpoint, but the failure is logged
-    (per REVIEW.md — never silently swallow).
+    (per REVIEW.md â€” never silently swallow).
     """
 
     def _is_caller_system_prompt(m: Message) -> bool:
@@ -266,7 +266,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 suggested_max_tokens=suggested,
             )
             # Bump max_tokens when complexity suggests more than what
-            # the client requested — never reduce below the request value.
+            # the client requested â€” never reduce below the request value.
             if suggested > request_body.max_tokens:
                 request_body.max_tokens = suggested
         except Exception:
@@ -278,7 +278,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
     if request_body.stream:
         # When the client passes `tools`, stream the model's raw
         # OpenAI-compat function-calling decision directly from the engine
-        # (bypassing the agent) — the streaming mirror of the non-streaming
+        # (bypassing the agent) â€” the streaming mirror of the non-streaming
         # #454 fix. Routing client-supplied tools through a server-side agent
         # would execute the agent's different tool set and drop the raw tool
         # call the caller expects (#414).
@@ -321,11 +321,11 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
     # Non-streaming: use agent if available, otherwise direct engine call.
     #
     # EXCEPTION: when the client explicitly passed `tools`, they're asking
-    # for raw OpenAI-compat function-calling — return the model's
+    # for raw OpenAI-compat function-calling â€” return the model's
     # tool_call decision verbatim. Routing through `_handle_agent` would
     # call `agent.run(input_text)`, which IGNORES `request_body.tools`,
     # runs the agent's own internal tool loop with its own (different)
-    # tool spec, and returns only `result.content` — so the model's
+    # tool spec, and returns only `result.content` â€” so the model's
     # tool_calls vanish and the user sees a generic acknowledgement
     # (e.g. "Understood. If you have another request...") that the
     # agent's re-prompted LLM produced. See #414.
@@ -333,7 +333,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
     # If a future caller needs agent orchestration WITH client-supplied
     # tools (e.g. injecting MCP tools through this endpoint and wanting
     # the agent to execute them), add an explicit opt-in header rather
-    # than removing this guard — silent re-routing is what produced #414.
+    # than removing this guard â€” silent re-routing is what produced #414.
     # ``_handle_agent`` (sync ``agent.run()``) and ``_handle_direct`` (sync
     # ``engine.generate()``) both make blocking upstream calls; run them in a
     # worker thread so a slow/wedged non-streaming request can't stall the
@@ -403,7 +403,7 @@ def _record_completed_exchange(
             )
         elif memory_service is not None:
             memory_service.submit(user_text, assistant_text)
-    except Exception:  # noqa: BLE001 — memory is best-effort, never fail a reply
+    except Exception:  # noqa: BLE001 â€” memory is best-effort, never fail a reply
         logging.getLogger("openjarvis.server").debug(
             "Memory submit failed",
             exc_info=True,
@@ -493,7 +493,7 @@ def _handle_direct(
         # which the leaderboard's `current_methodology_only=True` filter
         # would then drop entirely. Instead, when the engine is already
         # an InstrumentedEngine, skip the wrapper and call `generate`
-        # directly — InstrumentedEngine publishes the full per-record
+        # directly â€” InstrumentedEngine publishes the full per-record
         # event itself with energy + version intact. Only fall back to
         # the lightweight wrapper for engines that aren't already
         # instrumented.
@@ -799,7 +799,7 @@ async def _handle_stream_tools(
 
     Engines without a tool-aware ``stream_full`` override fall back to the
     base-class default (content tokens + a ``stop`` finish_reason, no
-    tool_calls) — identical to the prior plain-stream behaviour, so this never
+    tool_calls) â€” identical to the prior plain-stream behaviour, so this never
     regresses non-tool-capable engines.
     """
     messages = _to_messages(req.messages)
@@ -935,14 +935,14 @@ async def _handle_stream(
     messages = _ensure_identity_prompt(messages, app_config)
     chunk_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
-    # Last user message — recorded as the trace query.
+    # Last user message â€” recorded as the trace query.
     query_text = ""
     for _m in reversed(req.messages):
         if _m.role == "user" and _m.content:
             query_text = _m.content
             break
 
-    # Route directly to the right backend — bypasses engine routing entirely
+    # Route directly to the right backend â€” bypasses engine routing entirely
     # so broken MultiEngine state can never misdirect requests.
     use_cloud = _uses_direct_cloud_router(engine, model)
     telemetry_engine = (
@@ -968,8 +968,8 @@ async def _handle_stream(
         yield f"data: {first_chunk.model_dump_json()}\n\n"
 
         try:
-            # Cloud models → direct cloud API (reads keys from disk).
-            # Local models → engine.stream() first so mock engines work in
+            # Cloud models â†’ direct cloud API (reads keys from disk).
+            # Local models â†’ engine.stream() first so mock engines work in
             # tests.  Fall back to stream_local() only when the engine would
             # mis-route the request to a cloud backend (MultiEngine routing
             # confusion), which is detected by checking the routed engine's
@@ -982,7 +982,7 @@ async def _handle_stream(
                 # Use engine.stream() by default (preserves mock-engine
                 # compatibility in tests).  Only fall back to stream_local()
                 # when a real MultiEngine would mis-route the local model to a
-                # cloud backend — detected via isinstance so mocks are not
+                # cloud backend â€” detected via isinstance so mocks are not
                 # accidentally matched.
                 _use_local_fallback = False
                 try:
@@ -1313,10 +1313,10 @@ async def savings(request: Request):
     try:
         # current_methodology_only excludes pre-fix legacy rows from
         # the leaderboard's per-token efficiency numerator/denominator
-        # — see the comment on _time_filter for the bimodal-Wh/token
+        # â€” see the comment on _time_filter for the bimodal-Wh/token
         # background.
         summary = agg.summary(since=session_start, current_methodology_only=True)
-        # Exclude cloud model tokens from savings — only local
+        # Exclude cloud model tokens from savings â€” only local
         # inference counts toward cost savings.
         _cloud_prefixes = (
             "gpt-",
@@ -1350,7 +1350,7 @@ async def savings(request: Request):
 async def reset_telemetry():
     """Clear all stored telemetry records.
 
-    Useful after updating token-counting methodology — clears
+    Useful after updating token-counting methodology â€” clears
     historical records that were computed under the old rules so
     that the savings dashboard and leaderboard submissions start
     fresh with corrected values.
