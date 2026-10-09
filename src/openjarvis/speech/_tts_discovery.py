@@ -1,4 +1,4 @@
-"""Auto-discover available text-to-speech backends.
+﻿"""Auto-discover available text-to-speech backends.
 
 Mirrors ``speech/_discovery.py``, which does the same for speech-to-text. The
 selection rules used to live in ``cli/_voice_chat.py``; they moved here so the
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Priority order: local first, then cloud.
-TTS_BACKEND_ORDER = ("kokoro", "openai_tts", "cartesia")
+TTS_BACKEND_ORDER = ("kokoro", "openai_tts", "cartesia", "elevenlabs")
 
 # Voice IDs are backend-specific and NOT portable. ``speech.voice_id`` applies
 # only to ``speech.tts_backend``; if synthesis falls back to another backend we
@@ -24,7 +24,7 @@ TTS_BACKEND_ORDER = ("kokoro", "openai_tts", "cartesia")
 BACKEND_DEFAULT_VOICE = {
     "kokoro": "bm_george",  # British male
     "openai_tts": "onyx",  # deepest OpenAI preset
-    "cartesia": "",  # no safe static default; let Cartesia choose
+    "cartesia": "",  # no safe static default; let Cartesia choose`r`n    "elevenlabs": "Gubgw9l4dtIoQA9YZHgx",
 }
 
 
@@ -83,3 +83,4 @@ __all__ = [
     "get_tts_backend",
     "voice_preferences",
 ]
+
