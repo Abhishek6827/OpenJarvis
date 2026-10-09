@@ -1,4 +1,4 @@
-"""``jarvis chat`` — interactive multi-turn chat REPL."""
+"""``jarvis chat`` â€” interactive multi-turn chat REPL."""
 
 from __future__ import annotations
 
@@ -78,6 +78,14 @@ def _read_input(prompt: str = "You> ") -> Optional[str]:
     default=False,
     help="Enable voice I/O: mic input with silence detection + TTS response playback.",
 )
+@click.option(
+    "--hands-free",
+    "-H",
+    "hands_free",
+    is_flag=True,
+    default=False,
+    help="Continuous hands-free voice loop without pressing Enter.",
+)
 @runtime_cli_options
 def chat(
     engine_key: str | None,
@@ -88,6 +96,7 @@ def chat(
     system_prompt: str | None,
     persona_name: str | None,
     voice_mode: bool,
+    hands_free: bool,
     num_ctx: int | None,
     num_gpu: int | None,
     skip_runtime_panel: bool,
@@ -100,12 +109,12 @@ def chat(
     ``JARVIS_SKIP_MODEL_PICK=1``).
 
     Commands during chat:
-      /quit, /exit  — end session
-      /clear        — clear conversation history
-      /model        — show current model
-      /runtime      — Ollama context + GPU offload for this session
-      /help         — show available commands
-      /history      — show conversation history
+      /quit, /exit  â€” end session
+      /clear        â€” clear conversation history
+      /model        â€” show current model
+      /runtime      â€” Ollama context + GPU offload for this session
+      /help         â€” show available commands
+      /history      â€” show conversation history
 
     Pass --voice to use microphone input (silence-detection) and hear responses
     read back via text-to-speech (kokoro local or OpenAI TTS).
@@ -199,7 +208,7 @@ def chat(
     agent_key = agent_name or config.agent.default_agent
     if agent_key and agent_key != "none":
         try:
-            import openjarvis.agents  # noqa: F401 — trigger registration
+            import openjarvis.agents  # noqa: F401 â€” trigger registration
             from openjarvis.core.registry import AgentRegistry
 
             if AgentRegistry.contains(agent_key):
@@ -213,7 +222,7 @@ def chat(
                         getattr(config.agent, "tools", None),
                     )
                     if tool_names_list:
-                        import openjarvis.tools  # noqa: F401 — trigger registration
+                        import openjarvis.tools  # noqa: F401 â€” trigger registration
                         from openjarvis.core.registry import ToolRegistry
                         from openjarvis.tools._stubs import BaseTool
 
@@ -293,7 +302,7 @@ def chat(
 
     # Print banner
     voice_hint = (
-        "  [magenta]Voice mode ON[/magenta] — type normally, or press Enter "
+        "  [magenta]Voice mode ON[/magenta] â€” type normally, or press Enter "
         "to speak; silence stops recording.\n"
         if voice_mode
         else ""
@@ -321,7 +330,7 @@ def chat(
 
     _notifications = NotificationDispatcher(get_status())
 
-    # Automatic long-term memory — extracts durable facts in the background.
+    # Automatic long-term memory â€” extracts durable facts in the background.
     memory_service = None
     try:
         from openjarvis.memory import build_memory_service
@@ -365,13 +374,32 @@ def chat(
 
         if voice_mode:
             assert voice_session is not None
-            result = read_voice_input(console, voice_session)
+            if hands_free:
+                from openjarvis.cli._voice_chat import record_voice
+                result = record_voice(console, voice_session)
+            else:
+                result = read_voice_input(console, voice_session)
             if result is VOICE_EXIT:
-                console.print("\n[dim]Goodbye![/dim]")
+                console.print("\n[dim]Goodbye, sir![/dim]")
                 break
             if result is None:
                 continue  # nothing heard, loop again
-            user_input = result
+
+            if hands_free:
+                import re
+
+                # Wake word filter: only trigger when "jarvis" is spoken
+                if not re.search(r"\bjarvis\b", result, re.IGNORECASE):
+                    console.print("[dim yellow]Ignored background speech (say 'Jarvis' to activate)[/dim yellow]")
+                    continue
+
+                # Strip wake-word prefix if user said e.g. "Jarvis, what is the weather"
+                cleaned = re.sub(
+                    r"^(hey\s+)?jarvis[\s,:;\-]*", "", result, flags=re.IGNORECASE
+                ).strip()
+                user_input = cleaned if cleaned else result
+            else:
+                user_input = result
         else:
             user_input = _read_input()
             if user_input is None:
@@ -382,9 +410,12 @@ def chat(
                 continue
 
         # Handle slash commands
-        cmd = user_input.lower()
-        if cmd in ("/quit", "/exit", "/q"):
-            console.print("[dim]Goodbye![/dim]")
+        cmd = user_input.lower().strip().rstrip(".!")
+        if cmd in ("/quit", "/exit", "/q", "quit", "exit", "stop", "goodbye", "bye"):
+            console.print("[dim]Goodbye, sir![/dim]")
+            if voice_mode:
+                assert voice_session is not None
+                speak("Goodbye, sir. Have a wonderful day.", console, voice_session)
             break
         elif cmd == "/clear":
             history = []
@@ -408,12 +439,12 @@ def chat(
         elif cmd == "/help":
             console.print(
                 "[bold]Commands:[/bold]\n"
-                "  /quit, /exit  — end session\n"
-                "  /clear        — clear conversation\n"
-                "  /model        — show model info\n"
-                "  /runtime      — Ollama context + GPU offload for this session\n"
-                "  /history      — show conversation\n"
-                "  /help         — this message"
+                "  /quit, /exit  â€” end session\n"
+                "  /clear        â€” clear conversation\n"
+                "  /model        â€” show model info\n"
+                "  /runtime      â€” Ollama context + GPU offload for this session\n"
+                "  /history      â€” show conversation\n"
+                "  /help         â€” this message"
             )
             continue
         elif cmd == "/history":
@@ -514,3 +545,10 @@ def chat(
 
 
 __all__ = ["chat"]
+
+@click.command("voice", help="Start continuous hands-free voice chat.")
+@click.option("-m", "--model", "model_name", default=None, help="Model ID.")
+@click.pass_context
+def voice(ctx: click.Context, model_name: str | None) -> None:
+    """Start continuous hands-free voice chat (speak freely without pressing Enter)."""
+    ctx.invoke(chat, voice_mode=True, hands_free=True, model_name=model_name)

@@ -35,7 +35,7 @@ def _should_skip_update_check(ctx: click.Context, argv: list[str]) -> bool:
 
 
 @click.group(
-    help="OpenJarvis — modular AI assistant backend",
+    help="OpenJarvis â€” modular AI assistant backend",
     invoke_without_command=True,
 )
 @click.version_option(version=openjarvis.__version__, prog_name="jarvis")
@@ -64,7 +64,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool, pick_model_bare: bool) -
 
     # Check for updates on interactive commands. The banner is noise in
     # demo recordings of ``jarvis ask --research``, so skip it whenever
-    # the research flag is in argv (cheap argv sniff — Click hasn't
+    # the research flag is in argv (cheap argv sniff â€” Click hasn't
     # parsed the subcommand's args yet at this point). Also skip
     # ``jarvis scan --data-boundaries`` because it is intended to be a
     # local application-data diagnostic with no outbound calls.
@@ -79,7 +79,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool, pick_model_bare: bool) -
         # Run the PyPI version poll off the hot path: on a cache miss it does
         # a blocking urlopen (up to 3s) that otherwise delays every command,
         # notably `jarvis serve` startup (#263). It's best-effort and never
-        # raises, and the nudge prints to stderr, so a daemon thread is safe —
+        # raises, and the nudge prints to stderr, so a daemon thread is safe â€”
         # for long-lived commands (serve) it finishes; for short commands that
         # exit first, the check is simply skipped this run (same as a miss).
         threading.Thread(
@@ -88,7 +88,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool, pick_model_bare: bool) -
             daemon=True,
         ).start()
 
-    # First-run guard — routes bare `jarvis` to chat or init.
+    # First-run guard â€” routes bare `jarvis` to chat or init.
     if ctx.invoked_subcommand is None:
         from openjarvis.cli._first_run import check_and_route
 
@@ -104,7 +104,7 @@ if not _DATA_BOUNDARY_BOOTSTRAP:
     from openjarvis.cli.bench_cmd import bench
     from openjarvis.cli.channel_cmd import channel
     from openjarvis.cli.channels_cmd import channels
-    from openjarvis.cli.chat_cmd import chat
+    from openjarvis.cli.chat_cmd import chat, voice
     from openjarvis.cli.compose_cmd import compose
     from openjarvis.cli.config_cmd import config
     from openjarvis.cli.connect_cmd import connect
@@ -137,6 +137,7 @@ if not _DATA_BOUNDARY_BOOTSTRAP:
     cli.add_command(init, "init")
     cli.add_command(ask, "ask")
     cli.add_command(chat, "chat")
+    cli.add_command(voice, "voice")
     cli.add_command(serve, "serve")
     cli.add_command(model, "model")
     cli.add_command(memory, "memory")

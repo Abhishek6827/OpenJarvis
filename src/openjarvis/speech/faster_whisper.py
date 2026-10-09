@@ -87,11 +87,21 @@ class FasterWhisperBackend(SpeechBackend):
                 )
                 raise ImportError(self._last_error)
             compute_type = self._resolve_compute_type()
-            self._model = WhisperModel(
-                self._model_size,
-                device=self._device,
-                compute_type=compute_type,
-            )
+            try:
+                self._model = WhisperModel(
+                    self._model_size,
+                    device=self._device,
+                    compute_type=compute_type,
+                )
+            except Exception as exc:
+                logger.warning("Failed to initialize Whisper on %s (%s); falling back to CPU", self._device, exc)
+                self._device = "cpu"
+                self._compute_type = "int8"
+                self._model = WhisperModel(
+                    self._model_size,
+                    device="cpu",
+                    compute_type="int8",
+                )
         self._last_error = None
         return self._model
 
@@ -120,8 +130,23 @@ class FasterWhisperBackend(SpeechBackend):
                 if language:
                     kwargs["language"] = language
 
-                segments_iter, info = model.transcribe(tmp.name, **kwargs)
-                segments_list = list(segments_iter)
+                try:
+                    segments_iter, info = model.transcribe(tmp.name, **kwargs)
+                    segments_list = list(segments_iter)
+                except Exception as exc:
+                    if self._device != "cpu" and ("cublas" in str(exc).lower() or "cuda" in str(exc).lower() or "cudnn" in str(exc).lower()):
+                        logger.warning("CUDA error during transcription (%s); falling back to CPU", exc)
+                        self._device = "cpu"
+                        self._compute_type = "int8"
+                        self._model = WhisperModel(
+                            self._model_size,
+                            device="cpu",
+                            compute_type="int8",
+                        )
+                        segments_iter, info = self._model.transcribe(tmp.name, **kwargs)
+                        segments_list = list(segments_iter)
+                    else:
+                        raise
             finally:
                 try:
                     os.unlink(tmp.name)
